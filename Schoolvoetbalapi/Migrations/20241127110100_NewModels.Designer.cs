@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Schoolvoetbalapi.Data;
 
@@ -11,9 +12,11 @@ using Schoolvoetbalapi.Data;
 namespace Schoolvoetbalapi.Migrations
 {
     [DbContext(typeof(VoetbalContext))]
-    partial class VoetbalContextModelSnapshot : ModelSnapshot
+    [Migration("20241127110100_NewModels")]
+    partial class NewModels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -48,12 +51,7 @@ namespace Schoolvoetbalapi.Migrations
                     b.Property<int?>("Team2Score")
                         .HasColumnType("int");
 
-                    b.Property<int?>("TourneyId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("TourneyId");
 
                     b.ToTable("Matches");
                 });
@@ -73,23 +71,6 @@ namespace Schoolvoetbalapi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Teams");
-                });
-
-            modelBuilder.Entity("Schoolvoetbalapi.Model.Tourney", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Tourneys");
                 });
 
             modelBuilder.Entity("Schoolvoetbalapi.Model.User", b =>
@@ -125,18 +106,6 @@ namespace Schoolvoetbalapi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("Schoolvoetbalapi.Model.Match", b =>
-                {
-                    b.HasOne("Schoolvoetbalapi.Model.Tourney", null)
-                        .WithMany("Matches")
-                        .HasForeignKey("TourneyId");
-                });
-
-            modelBuilder.Entity("Schoolvoetbalapi.Model.Tourney", b =>
-                {
-                    b.Navigation("Matches");
                 });
 #pragma warning restore 612, 618
         }

@@ -43,10 +43,6 @@ namespace Schoolvoetbalapi.Model
         public string Password { get; set; }
         public string Token { get; set; }
         public bool Admin { get; set; }
-        public int? TeamId { get; set; }
-        public Team? Team { get; set; }
-        public ICollection<Team> CreatedTeams { get; set; } = new List<Team>();
-        public ICollection<Match> RefereedMatches { get; set; } = new List<Match>();
-        public ICollection<Goal> Goals { get; set; } = new List<Goal>();
+        public decimal Money { get; set; }
     }
 }
