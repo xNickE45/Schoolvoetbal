@@ -37,9 +37,8 @@ app.MapGet("/users/login", (string email, string password) =>
     return Results.BadRequest();
 });
 
-app.MapGet("/users/validate", (HttpContext httpContext) =>
+app.MapGet("/users/validate", (string token) =>
 {
-    var token = httpContext.Request.Query["token"].ToString();
     if (IsAdmin(context, token))
     {
         return Results.Ok("Admin");
@@ -47,9 +46,8 @@ app.MapGet("/users/validate", (HttpContext httpContext) =>
     return Results.BadRequest();
 });
 
-app.MapGet("/users", (HttpContext httpContext) =>
+app.MapGet("/users", (string token) =>
 {
-    var token = httpContext.Request.Query["token"].ToString();
     Console.WriteLine($"Token received: {token}");
     if (IsAdmin(context, token))
     {
@@ -58,27 +56,44 @@ app.MapGet("/users", (HttpContext httpContext) =>
     return Results.BadRequest();
 });
 
-app.MapGet("/users/{id}", (int id, HttpContext httpContext) =>
+app.MapGet("/users/{id}", (int id, string token) =>
 {
-    var token = httpContext.Request.Query["token"].ToString();
+    var requestingUser = context.Users.FirstOrDefault(u => u.Token == token);
+
+    if (requestingUser == null)
+    {
+        return Results.BadRequest("Invalid token.");
+    }
+
+    if (requestingUser.Admin || requestingUser.Id == id)
+    {
+        var user = context.Users.Find(id);
+        if (user == null)
+        {
+            return Results.NotFound("User not found.");
+        }
+        return Results.Ok(user);
+    }
+    else
+    {
+        return Results.BadRequest("You can only see your own information.");
+    }
+});
+
+app.MapDelete("/users/{id}", (int id, string token) =>
+{
     if (!IsAdmin(context, token))
-        return Results.BadRequest();
-    return Results.Ok(context.Users.Find(id));
-});
+    {
+        return Results.BadRequest("Only admins can delete users.");
+    }
 
-app.MapPost("/users", (User u) =>
-{
-    context.Users.Add(u);
-    context.SaveChanges();
-    return u;
-});
-
-app.MapDelete("/users/{id}", (int id) =>
-{
     User? usertodelete = context.Users.Find(id);
     if (usertodelete != null)
+    {
         context.Users.Remove(usertodelete);
-    context.SaveChanges();
+        context.SaveChanges();
+    }
+    return Results.NoContent();
 });
 
 app.MapPost("/users/register", (string name, string email, string password) =>
@@ -96,134 +111,194 @@ app.MapPost("/users/register", (string name, string email, string password) =>
     return Results.Created($"/users/{newUser.Id}", newUser);
 });
 
-app.MapGet("/teams", () =>
+app.MapGet("/teams", (string token) =>
 {
-    return Results.Ok(context.Teams.ToArray());
-});
-
-app.MapGet("/teams/{id}", (int id) =>
-{
-    return Results.Ok(context.Teams.Find(id));
-});
-
-app.MapPost("/teams", (Team team) =>
-{
-    context.Teams.Add(team);
-    context.SaveChanges();
-    return Results.Created($"/teams/{team.Id}", team);
-});
-
-app.MapPut("/teams/{id}", (int id, Team updatedTeam) =>
-{
-    var team = context.Teams.Find(id);
-    if (team == null)
+    if (IsAdmin(context, token))
     {
-        return Results.NotFound();
+        return Results.Ok(context.Teams.ToArray());
     }
-    team.Name = updatedTeam.Name;
-    team.Points = updatedTeam.Points;
-    team.CreatorId = updatedTeam.CreatorId;
-    context.SaveChanges();
-    return Results.Ok(team);
+    return Results.BadRequest("Only admins can view all teams.");
 });
 
-app.MapDelete("/teams/{id}", (int id) =>
+app.MapGet("/teams/{id}", (int id, string token) =>
 {
-    var team = context.Teams.Find(id);
-    if (team != null)
+    if (IsAdmin(context, token))
     {
-        context.Teams.Remove(team);
+        return Results.Ok(context.Teams.Find(id));
+    }
+    return Results.BadRequest("Only admins can view team details.");
+});
+
+app.MapPost("/teams", (Team team, string token) =>
+{
+    if (IsAdmin(context, token))
+    {
+        context.Teams.Add(team);
         context.SaveChanges();
+        return Results.Created($"/teams/{team.Id}", team);
     }
-    return Results.NoContent();
+    return Results.BadRequest("Only admins can create teams.");
 });
 
-app.MapGet("/matches", () =>
+app.MapPut("/teams/{id}", (int id, Team updatedTeam, string token) =>
 {
-    return Results.Ok(context.Matches.ToArray());
-});
-
-app.MapGet("/matches/{id}", (int id) =>
-{
-    return Results.Ok(context.Matches.Find(id));
-});
-
-app.MapPost("/matches", (Match match) =>
-{
-    context.Matches.Add(match);
-    context.SaveChanges();
-    return Results.Created($"/matches/{match.Id}", match);
-});
-
-app.MapPut("/matches/{id}", (int id, Match updatedMatch) =>
-{
-    var match = context.Matches.Find(id);
-    if (match == null)
+    if (IsAdmin(context, token))
     {
-        return Results.NotFound();
-    }
-    match.Team1Id = updatedMatch.Team1Id;
-    match.Team2Id = updatedMatch.Team2Id;
-    match.Team1Score = updatedMatch.Team1Score;
-    match.Team2Score = updatedMatch.Team2Score;
-    match.Field = updatedMatch.Field;
-    match.RefereeId = updatedMatch.RefereeId;
-    match.Time = updatedMatch.Time;
-    context.SaveChanges();
-    return Results.Ok(match);
-});
-
-app.MapDelete("/matches/{id}", (int id) =>
-{
-    var match = context.Matches.Find(id);
-    if (match != null)
-    {
-        context.Matches.Remove(match);
+        var team = context.Teams.Find(id);
+        if (team == null)
+        {
+            return Results.NotFound();
+        }
+        team.Name = updatedTeam.Name;
+        team.Points = updatedTeam.Points;
+        team.CreatorId = updatedTeam.CreatorId;
         context.SaveChanges();
+        return Results.Ok(team);
     }
-    return Results.NoContent();
+    return Results.BadRequest("Only admins can update teams.");
 });
 
-app.MapGet("/goals", () =>
+app.MapDelete("/teams/{id}", (int id, string token) =>
 {
-    return Results.Ok(context.Goals.ToArray());
-});
-
-app.MapGet("/goals/{id}", (int id) =>
-{
-    return Results.Ok(context.Goals.Find(id));
-});
-
-app.MapPost("/goals", (Goal goal) =>
-{
-    context.Goals.Add(goal);
-    context.SaveChanges();
-    return Results.Created($"/goals/{goal.Id}", goal);
-});
-
-app.MapPut("/goals/{id}", (int id, Goal updatedGoal) =>
-{
-    var goal = context.Goals.Find(id);
-    if (goal == null)
+    if (IsAdmin(context, token))
     {
-        return Results.NotFound();
+        var team = context.Teams.Find(id);
+        if (team != null)
+        {
+            context.Teams.Remove(team);
+            context.SaveChanges();
+        }
+        return Results.NoContent();
     }
-    goal.PlayerId = updatedGoal.PlayerId;
-    goal.MatchId = updatedGoal.MatchId;
-    goal.Minute = updatedGoal.Minute;
-    context.SaveChanges();
-    return Results.Ok(goal);
+    return Results.BadRequest("Only admins can delete teams.");
 });
 
-app.MapDelete("/goals/{id}", (int id) =>
+app.MapGet("/matches", (string token) =>
 {
-    var goal = context.Goals.Find(id);
-    if (goal != null)
+    if (IsAdmin(context, token))
     {
-        context.Goals.Remove(goal);
+        return Results.Ok(context.Matches.ToArray());
+    }
+    return Results.BadRequest("Only admins can view all matches.");
+});
+
+app.MapGet("/matches/{id}", (int id, string token) =>
+{
+    if (IsAdmin(context, token))
+    {
+        return Results.Ok(context.Matches.Find(id));
+    }
+    return Results.BadRequest("Only admins can view match details.");
+});
+
+app.MapPost("/matches", (Match match, string token) =>
+{
+    if (IsAdmin(context, token))
+    {
+        context.Matches.Add(match);
         context.SaveChanges();
+        return Results.Created($"/matches/{match.Id}", match);
     }
-    return Results.NoContent();
+    return Results.BadRequest("Only admins can create matches.");
+});
+
+app.MapPut("/matches/{id}", (int id, Match updatedMatch, string token) =>
+{
+    if (IsAdmin(context, token))
+    {
+        var match = context.Matches.Find(id);
+        if (match == null)
+        {
+            return Results.NotFound();
+        }
+        match.Team1Id = updatedMatch.Team1Id;
+        match.Team2Id = updatedMatch.Team2Id;
+        match.Team1Score = updatedMatch.Team1Score;
+        match.Team2Score = updatedMatch.Team2Score;
+        match.Field = updatedMatch.Field;
+        match.RefereeId = updatedMatch.RefereeId;
+        match.Time = updatedMatch.Time;
+        context.SaveChanges();
+        return Results.Ok(match);
+    }
+    return Results.BadRequest("Only admins can update matches.");
+});
+
+app.MapDelete("/matches/{id}", (int id, string token) =>
+{
+    if (IsAdmin(context, token))
+    {
+        var match = context.Matches.Find(id);
+        if (match != null)
+        {
+            context.Matches.Remove(match);
+            context.SaveChanges();
+        }
+        return Results.NoContent();
+    }
+    return Results.BadRequest("Only admins can delete matches.");
+});
+
+app.MapGet("/goals", (string token) =>
+{
+    if (IsAdmin(context, token))
+    {
+        return Results.Ok(context.Goals.ToArray());
+    }
+    return Results.BadRequest("Only admins can view all goals.");
+});
+
+app.MapGet("/goals/{id}", (int id, string token) =>
+{
+    if (IsAdmin(context, token))
+    {
+        return Results.Ok(context.Goals.Find(id));
+    }
+    return Results.BadRequest("Only admins can view goal details.");
+});
+
+app.MapPost("/goals", (Goal goal, string token) =>
+{
+    if (IsAdmin(context, token))
+    {
+        context.Goals.Add(goal);
+        context.SaveChanges();
+        return Results.Created($"/goals/{goal.Id}", goal);
+    }
+    return Results.BadRequest("Only admins can create goals.");
+});
+
+app.MapPut("/goals/{id}", (int id, Goal updatedGoal, string token) =>
+{
+    if (IsAdmin(context, token))
+    {
+        var goal = context.Goals.Find(id);
+        if (goal == null)
+        {
+            return Results.NotFound();
+        }
+        goal.PlayerId = updatedGoal.PlayerId;
+        goal.MatchId = updatedGoal.MatchId;
+        goal.Minute = updatedGoal.Minute;
+        context.SaveChanges();
+        return Results.Ok(goal);
+    }
+    return Results.BadRequest("Only admins can update goals.");
+});
+
+app.MapDelete("/goals/{id}", (int id, string token) =>
+{
+    if (IsAdmin(context, token))
+    {
+        var goal = context.Goals.Find(id);
+        if (goal != null)
+        {
+            context.Goals.Remove(goal);
+            context.SaveChanges();
+        }
+        return Results.NoContent();
+    }
+    return Results.BadRequest("Only admins can delete goals.");
 });
 
 app.Run();
