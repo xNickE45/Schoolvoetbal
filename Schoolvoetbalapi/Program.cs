@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Schoolvoetbalapi;
 using Schoolvoetbalapi.Data;
 using Schoolvoetbalapi.Migrations;
@@ -112,14 +113,24 @@ app.MapPost("/users/register", (string name, string email, string password) =>
     return Results.Created($"/users/{newUser.Id}", newUser);
 });
 
-app.MapGet("/tourneys", () =>
+app.MapGet("/tourneys", (string token) =>
 {
+    var user = context.Users.FirstOrDefault(u => u.Token == token);
+    if (user == null)
+    {
+        return Results.BadRequest("Invalid token.");
+    }
     var tourneys = context.Tourneys.Include(t => t.Matches).ToArray();
     return Results.Ok(tourneys);
 });
 
-app.MapGet("/tourneys/{id}", (int id) =>
+app.MapGet("/tourneys/{id}", (int id, string token) =>
 {
+    var user = context.Users.FirstOrDefault(u => u.Token == token);
+    if (user == null)
+    {
+        return Results.BadRequest("Invalid token.");
+    }
     var tourney = context.Tourneys.Include(t => t.Matches).FirstOrDefault(t => t.Id == id);
     if (tourney == null)
     {
@@ -274,8 +285,13 @@ app.MapPut("/users/{id}", (int id, string token, string name, string email, stri
     }
 });
 
-app.MapGet("/teams", () =>
+app.MapGet("/teams", (string token) =>
 {
+    var user = context.Users.FirstOrDefault(u => u.Token == token);
+    if (user == null)
+    {
+        return Results.BadRequest("Invalid token.");
+    }
     var teams = context.Teams.ToList();
     return Results.Ok(teams);
 });
@@ -323,8 +339,18 @@ app.MapPut("/teams/{id}", (int id, string token, string name) =>
     context.SaveChanges();
     return Results.Ok(team);
 });
-app.MapPost("/matches/{id}/bets", (int id, string token, Bet bet, User user) =>
+app.MapPost("/matches/{id}/bets", (int id, string token, Bet bet) =>
 {
+    var user = context.Users.FirstOrDefault(u => u.Token == token);
+    if (user == null)
+    {
+        return Results.BadRequest("Invalid token.");
+    }
+
+    if (user.Money < (decimal)bet.MoneyBet)
+    {
+        return Results.BadRequest("Insufficient funds.");
+    }
     var match = context.Matches.Include(m => m.Bets).FirstOrDefault(m => m.Id == id);
     if (match == null)
     {
@@ -337,8 +363,62 @@ app.MapPost("/matches/{id}/bets", (int id, string token, Bet bet, User user) =>
     }
     bet.User = user;
     match.Bets.Add(bet);
+    user.Money -= (decimal)bet.MoneyBet;
     context.SaveChanges();
     return Results.Created($"/matches/{id}/bets/{bet.Id}", bet);
+});
+
+app.MapPut("/matches/{matchId}/bets/{betId}", (int matchId, int betId, string token, Bet bet) =>
+{
+    var user = context.Users.FirstOrDefault(u => u.Token == token);
+    if (user == null)
+    {
+        return Results.BadRequest("Invalid token.");
+    }
+    var match = context.Matches.Include(m => m.Bets).FirstOrDefault(m => m.Id == matchId);
+    if (match == null)
+    {
+        return Results.NotFound("Match not found.");
+    }
+    var existingBet = match.Bets.FirstOrDefault(b => b.Id == betId);
+    if (existingBet == null)
+    {
+        return Results.NotFound("Bet not found.");
+    }
+    if (existingBet.User.Id != user.Id)
+    {
+        return Results.BadRequest("You can only update your own bets.");
+    }
+    bet.Id = betId;
+    context.Entry(existingBet).CurrentValues.SetValues(bet);
+    context.SaveChanges();
+    return Results.Ok(bet);
+});
+
+app.MapDelete("/matches/{matchId}/bets/{betId}", (int matchId, int betId, string token) =>
+{
+    var user = context.Users.FirstOrDefault(u => u.Token == token);
+    if (user == null)
+    {
+        return Results.BadRequest("Invalid token.");
+    }
+    var match = context.Matches.Include(m => m.Bets).FirstOrDefault(m => m.Id == matchId);
+    if (match == null)
+    {
+        return Results.NotFound("Match not found.");
+    }
+    var existingBet = match.Bets.FirstOrDefault(b => b.Id == betId);
+    if (existingBet == null)
+    {
+        return Results.NotFound("Bet not found.");
+    }
+    if (existingBet.User.Id != user.Id)
+    {
+        return Results.BadRequest("You can only delete your own bets.");
+    }
+    match.Bets.Remove(existingBet);
+    context.SaveChanges();
+    return Results.NoContent();
 });
 
 app.MapGet("/matches/{id}/bets", (int id) =>
