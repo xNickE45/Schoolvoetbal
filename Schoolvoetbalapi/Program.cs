@@ -323,6 +323,111 @@ app.MapPut("/teams/{id}", (int id, string token, string name) =>
     context.SaveChanges();
     return Results.Ok(team);
 });
+app.MapPost("/matches/{id}/bets", (int id, string token, Bet bet, User user) =>
+{
+    var match = context.Matches.Include(m => m.Bets).FirstOrDefault(m => m.Id == id);
+    if (match == null)
+    {
+        return Results.NotFound("Match not found.");
+    }
+    var existingBet = match.Bets.FirstOrDefault(b => b.User.Id == user.Id);
+    if (existingBet != null)
+    {
+        return Results.BadRequest("You already placed a bet on this match.");
+    }
+    bet.User = user;
+    match.Bets.Add(bet);
+    context.SaveChanges();
+    return Results.Created($"/matches/{id}/bets/{bet.Id}", bet);
+});
+
+app.MapGet("/matches/{id}/bets", (int id) =>
+{
+    var match = context.Matches.Include(m => m.Bets).FirstOrDefault(m => m.Id == id);
+    if (match == null)
+    {
+        return Results.NotFound("Match not found.");
+    }
+    return Results.Ok(match.Bets);
+});
+
+app.MapPut("/matches/{matchId}/bets/{betId}", (int matchId, int betId, string token, Bet bet, User user) =>
+{
+    var match = context.Matches.Include(m => m.Bets).FirstOrDefault(m => m.Id == matchId);
+    if (match == null)
+    {
+        return Results.NotFound("Match not found.");
+    }
+    var existingBet = match.Bets.FirstOrDefault(b => b.Id == betId);
+    if (existingBet == null)
+    {
+        return Results.NotFound("Bet not found.");
+    }
+    if (existingBet.User.Id != user.Id)
+    {
+        return Results.BadRequest("You can only update your own bets.");
+    }
+    bet.Id = betId;
+    context.Entry(existingBet).CurrentValues.SetValues(bet);
+    context.SaveChanges();
+    return Results.Ok(bet);
+});
+
+app.MapDelete("/matches/{matchId}/bets/{betId}", (int matchId, int betId, string token, User user) =>
+{
+    var match = context.Matches.Include(m => m.Bets).FirstOrDefault(m => m.Id == matchId);
+    if (match == null)
+    {
+        return Results.NotFound("Match not found.");
+    }
+    var existingBet = match.Bets.FirstOrDefault(b => b.Id == betId);
+    if (existingBet == null)
+    {
+        return Results.NotFound("Bet not found.");
+    }
+    if (existingBet.User.Id != user.Id)
+    {
+        return Results.BadRequest("You can only delete your own bets.");
+    }
+    match.Bets.Remove(existingBet);
+    context.SaveChanges();
+    return Results.NoContent();
+});
+
+app.MapPut("/matches/{id}", (int id, string token, Match match) =>
+{
+    if (!IsAdmin(context, token))
+    {
+        return Results.BadRequest("Only admins can update matches.");
+    }
+    var existingMatch = context.Matches.Find(id);
+    if (existingMatch == null)
+    {
+        return Results.NotFound("Match not found.");
+    }
+    match.Id = id;
+    context.Entry(existingMatch).CurrentValues.SetValues(match);
+    context.SaveChanges();
+    return Results.Ok(match);
+});
+
+app.MapDelete("/matches/{id}", (int id, string token) =>
+{
+    if (!IsAdmin(context, token))
+    {
+        return Results.BadRequest("Only admins can delete matches.");
+    }
+    var match = context.Matches.Find(id);
+    if (match == null)
+    {
+        return Results.NotFound("Match not found.");
+    }
+    context.Matches.Remove(match);
+    context.SaveChanges();
+    return Results.NoContent();
+});
+
+
 
 
 
