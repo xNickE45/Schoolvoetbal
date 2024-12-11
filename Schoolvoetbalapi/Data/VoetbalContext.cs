@@ -10,6 +10,7 @@ namespace Schoolvoetbalapi.Data
         public DbSet<Team> Teams { get; set; }
 
         public DbSet<Tourney> Tourneys { get; set; }
+        public DbSet<Bet> Bets { get; set; }
 
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

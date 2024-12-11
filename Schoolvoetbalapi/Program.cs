@@ -24,7 +24,7 @@ if (context.Users.Count() == 0)
     Console.WriteLine($"Root user created with token {root.Token}");
 }
 
-app.MapGet("/", () => "Hello World!");
+app.MapGet("/", () => "Dit is de Api voor de schoolvoetbalapp!");
 
 app.MapGet("/users/login", (string email, string password) =>
 {
@@ -83,7 +83,7 @@ app.MapGet("/users/{id}", (int id, string token) =>
 
 app.MapDelete("/users/{id}", (int id, string token) =>
 {
-    if (!IsAdmin(context, token))
+    if (IsAdmin(context, token))
     {
         return Results.BadRequest("Only admins can delete users.");
     }
@@ -112,13 +112,13 @@ app.MapPost("/users/register", (string name, string email, string password) =>
     return Results.Created($"/users/{newUser.Id}", newUser);
 });
 
-app.MapGet("/tourney", () =>
+app.MapGet("/tourneys", () =>
 {
-    var tourneys = context.Tourneys.Include(t => t.Matches).ToList();
+    var tourneys = context.Tourneys.Include(t => t.Matches).ToArray();
     return Results.Ok(tourneys);
 });
 
-app.MapGet("/tourney/{id}", (int id) =>
+app.MapGet("/tourneys/{id}", (int id) =>
 {
     var tourney = context.Tourneys.Include(t => t.Matches).FirstOrDefault(t => t.Id == id);
     if (tourney == null)
@@ -128,9 +128,9 @@ app.MapGet("/tourney/{id}", (int id) =>
     return Results.Ok(tourney);
 });
 
-app.MapPost("/tourney", (string name, string token) =>
+app.MapPost("/tourneys", (string name, string token) =>
 {
-    if (!IsAdmin(context, token))
+    if (IsAdmin(context, token))
     {
         var tourney = new Tourney { Name = name };
         context.Tourneys.Add(tourney);
@@ -140,7 +140,7 @@ app.MapPost("/tourney", (string name, string token) =>
     return Results.BadRequest("Only admins can create tourneys.");
 });
 
-app.MapDelete("/tourney/{id}", (int id, string token) =>
+app.MapDelete("/tourneys/{id}", (int id, string token) =>
 {
     if (!IsAdmin(context, token))
     {
@@ -153,10 +153,10 @@ app.MapDelete("/tourney/{id}", (int id, string token) =>
     }
     context.Tourneys.Remove(tourney);
     context.SaveChanges();
-    return Results.NoContent();
+    return Results.Ok();
 });
 
-app.MapPost("/tourney/{id}/match", (int id, string token, int team1Id, int team2Id, int? team1Score, int? team2Score, DateTime startTime, bool finished) =>
+app.MapPost("/tourneys/{id}/match", (int id,string token,Match match) =>
 {
     if (!IsAdmin(context, token))
     {
@@ -167,21 +167,13 @@ app.MapPost("/tourney/{id}/match", (int id, string token, int team1Id, int team2
     {
         return Results.NotFound("Tourney not found.");
     }
-    var match = new Match
-    {
-        Team1Id = team1Id,
-        Team2Id = team2Id,
-        Team1Score = team1Score,
-        Team2Score = team2Score,
-        StartTime = startTime,
-        Finished = finished
-    };
+ 
     tourney.Matches.Add(match);
     context.SaveChanges();
     return Results.Created($"/tourney/{id}/match/{match.Id}", match);
 });
 
-app.MapDelete("/tourney/{tourneyId}/match/{matchId}", (int tourneyId, int matchId, string token) =>
+app.MapDelete("/tourneys/{tourneyId}/match/{matchId}", (int tourneyId, int matchId, string token) =>
 {
     if (!IsAdmin(context, token))
     {
@@ -202,7 +194,7 @@ app.MapDelete("/tourney/{tourneyId}/match/{matchId}", (int tourneyId, int matchI
     return Results.NoContent();
 });
 
-app.MapPut("/tourney/{tourneyId}/match/{matchId}", (int tourneyId, int matchId, string token, int team1Id, int team2Id, int? team1Score, int? team2Score, DateTime startTime, bool finished) =>
+app.MapPut("/tourneys/{tourneyId}/match/{matchId}", (int tourneyId, int matchId, string token, Match match) =>
 {
     if (!IsAdmin(context, token))
     {
@@ -213,22 +205,18 @@ app.MapPut("/tourney/{tourneyId}/match/{matchId}", (int tourneyId, int matchId, 
     {
         return Results.NotFound("Tourney not found.");
     }
-    var match = tourney.Matches.FirstOrDefault(m => m.Id == matchId);
-    if (match == null)
+    var existingMatch = tourney.Matches.FirstOrDefault(m => m.Id == matchId);
+    if (existingMatch == null)
     {
         return Results.NotFound("Match not found.");
     }
-    match.Team1Id = team1Id;
-    match.Team2Id = team2Id;
-    match.Team1Score = team1Score;
-    match.Team2Score = team2Score;
-    match.StartTime = startTime;
-    match.Finished = finished;
+    match.Id = matchId;
+    context.Entry(existingMatch).CurrentValues.SetValues(match);
     context.SaveChanges();
     return Results.Ok(match);
 });
 
-app.MapPut("/tourney/{id}", (int id, string token, string name) =>
+app.MapPut("/tourneys/{id}", (int id, string token, string name) =>
 {
     if (!IsAdmin(context, token))
     {
@@ -244,7 +232,7 @@ app.MapPut("/tourney/{id}", (int id, string token, string name) =>
     return Results.Ok(tourney);
 });
 
-app.MapDelete("/tourney/{id}", (int id, string token) =>
+app.MapDelete("/tourneys/{id}", (int id, string token) =>
 {
     if (!IsAdmin(context, token))
     {

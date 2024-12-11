@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Schoolvoetbalapi.Data;
 
@@ -11,9 +12,11 @@ using Schoolvoetbalapi.Data;
 namespace Schoolvoetbalapi.Migrations
 {
     [DbContext(typeof(VoetbalContext))]
-    partial class VoetbalContextModelSnapshot : ModelSnapshot
+    [Migration("20241211091429_MatchTeams")]
+    partial class MatchTeams
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,37 +24,6 @@ namespace Schoolvoetbalapi.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
-
-            modelBuilder.Entity("Schoolvoetbalapi.Model.Bet", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BetTeamId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("MatchId")
-                        .HasColumnType("int");
-
-                    b.Property<float>("MoneyBet")
-                        .HasColumnType("float");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BetTeamId");
-
-                    b.HasIndex("MatchId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Bets");
-                });
 
             modelBuilder.Entity("Schoolvoetbalapi.Model.Match", b =>
                 {
@@ -162,29 +134,6 @@ namespace Schoolvoetbalapi.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("Schoolvoetbalapi.Model.Bet", b =>
-                {
-                    b.HasOne("Schoolvoetbalapi.Model.Team", "BetTeam")
-                        .WithMany()
-                        .HasForeignKey("BetTeamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Schoolvoetbalapi.Model.Match", null)
-                        .WithMany("Bets")
-                        .HasForeignKey("MatchId");
-
-                    b.HasOne("Schoolvoetbalapi.Model.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BetTeam");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Schoolvoetbalapi.Model.Match", b =>
                 {
                     b.HasOne("Schoolvoetbalapi.Model.Team", "Team1")
@@ -206,11 +155,6 @@ namespace Schoolvoetbalapi.Migrations
                     b.Navigation("Team1");
 
                     b.Navigation("Team2");
-                });
-
-            modelBuilder.Entity("Schoolvoetbalapi.Model.Match", b =>
-                {
-                    b.Navigation("Bets");
                 });
 
             modelBuilder.Entity("Schoolvoetbalapi.Model.Tourney", b =>
