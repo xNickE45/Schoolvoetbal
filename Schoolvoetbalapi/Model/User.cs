@@ -1,4 +1,6 @@
-﻿using System.Security.Cryptography;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Schoolvoetbalapi.Model
@@ -36,7 +38,8 @@ namespace Schoolvoetbalapi.Model
                 return builder.ToString(); // Retourneer de resulterende hash
             }
         }
-
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public required string Name { get; set; }
         public required string Email { get; set; }

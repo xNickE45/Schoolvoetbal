@@ -107,7 +107,8 @@ app.MapPost("/users/register", (string name, string email, string password) =>
             return Results.BadRequest("User already exists");
         }
     }
-    User newUser = new User { Name = name, Email = email, Password = User.ComputeSha256Hash(password) };
+    int balance = 50;
+    User newUser = new User { Name = name, Email = email, Password = User.ComputeSha256Hash(password)};
     context.Users.Add(newUser);
     context.SaveChanges();
     return Results.Created($"/users/{newUser.Id}", newUser);
@@ -169,22 +170,51 @@ app.MapDelete("/tourneys/{id}", (int id, string token) =>
     context.SaveChanges();
     return Results.Ok();
 });
-
-app.MapPost("/tourneys/{id}/match", (int id,string token,Match match) =>
+app.MapPost("/tourneys/{id}/match", (int id, string token, List<int> teamIds) =>
 {
     if (!IsAdmin(context, token))
     {
         return Results.BadRequest("Only admins can create matches.");
     }
+
     var tourney = context.Tourneys.Include(t => t.Matches).FirstOrDefault(t => t.Id == id);
     if (tourney == null)
     {
         return Results.NotFound("Tourney not found.");
     }
- 
-    tourney.Matches.Add(match);
+
+    var teams = context.Teams.Where(t => teamIds.Contains(t.Id)).ToList();
+    if (teams.Count < 2)
+    {
+        return Results.BadRequest("At least two teams must be provided.");
+    }
+
+    var matches = new List<Match>();
+
+    // Create matches for all combinations of teams
+    for (int i = 0; i < teams.Count; i++)
+    {
+        for (int j = i + 1; j < teams.Count; j++)
+        {
+            var match = new Match
+            {
+                Team1 = teams[i],
+                Team2 = teams[j],
+                TourneyId = id,
+                StartTime = DateTime.Now, // Set appropriate start time
+                Finished = false,
+                Team1Score = null,
+                Team2Score = null,
+                Bets = new List<Bet>()
+            };
+            matches.Add(match);
+            context.Matches.Add(match);
+        }
+    }
+
     context.SaveChanges();
-    return Results.Created($"/tourney/{id}/match/{match.Id}", match);
+
+    return Results.Created($"/tourney/{id}/matches", matches);
 });
 
 app.MapDelete("/tourneys/{tourneyId}/match/{matchId}", (int tourneyId, int matchId, string token) =>

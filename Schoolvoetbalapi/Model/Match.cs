@@ -1,7 +1,12 @@
-﻿namespace Schoolvoetbalapi.Model
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Schoolvoetbalapi.Model
 {
     public class Match
     {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public  Team Team1 { get; set; }
         public int TourneyId { get; set; } 
