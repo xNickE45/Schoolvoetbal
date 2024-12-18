@@ -115,11 +115,17 @@ app.MapPost("/users/register", (string name, string email, string password) =>
 
 app.MapGet("/tourneys", () =>
 {
-    var tourneys = context.Tourneys.Include(t => t.Matches).ToArray();
-    app.MapGet("/", () => "test");
-    return Results.Ok(tourneys);
+    // Retrieve tournaments including matches and their associated teams
+    var tourneys = context.Tourneys
+        .Include(t => t.Matches) // Include matches
+        .ThenInclude(m => m.Team1) // Include Team1 in matches
+        .Include(t => t.Matches)
+        .ThenInclude(m => m.Team2) // Include Team2 in matches
+        .ToArray();
 
+    return Results.Ok(tourneys);
 });
+
 
 app.MapGet("/tourneys/{id}", (int id, string token) =>
 {
