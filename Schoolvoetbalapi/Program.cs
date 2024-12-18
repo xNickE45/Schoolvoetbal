@@ -113,15 +113,12 @@ app.MapPost("/users/register", (string name, string email, string password) =>
     return Results.Created($"/users/{newUser.Id}", newUser);
 });
 
-app.MapGet("/tourneys", (string token) =>
+app.MapGet("/tourneys", () =>
 {
-    var user = context.Users.FirstOrDefault(u => u.Token == token);
-    if (user == null)
-    {
-        return Results.BadRequest("Invalid token.");
-    }
     var tourneys = context.Tourneys.Include(t => t.Matches).ToArray();
+    app.MapGet("/", () => "test");
     return Results.Ok(tourneys);
+
 });
 
 app.MapGet("/tourneys/{id}", (int id, string token) =>
@@ -431,7 +428,7 @@ app.MapGet("/matches/{id}/bets", (int id) =>
     return Results.Ok(match.Bets);
 });
 
-app.MapPut("/matches/{matchId}/bets/{betId}", (int matchId, int betId, string token, Bet bet, User user) =>
+app.MapPut("/matches/{matchId}/bets/{betId}", (int matchId, int betId, string token, Bet bet) =>
 {
     var match = context.Matches.Include(m => m.Bets).FirstOrDefault(m => m.Id == matchId);
     if (match == null)
@@ -443,17 +440,14 @@ app.MapPut("/matches/{matchId}/bets/{betId}", (int matchId, int betId, string to
     {
         return Results.NotFound("Bet not found.");
     }
-    if (existingBet.User.Id != user.Id)
-    {
-        return Results.BadRequest("You can only update your own bets.");
-    }
+
     bet.Id = betId;
     context.Entry(existingBet).CurrentValues.SetValues(bet);
     context.SaveChanges();
     return Results.Ok(bet);
 });
 
-app.MapDelete("/matches/{matchId}/bets/{betId}", (int matchId, int betId, string token, User user) =>
+app.MapDelete("/matches/{matchId}/bets/{betId}", (int matchId, int betId, string token) =>
 {
     var match = context.Matches.Include(m => m.Bets).FirstOrDefault(m => m.Id == matchId);
     if (match == null)
@@ -465,7 +459,7 @@ app.MapDelete("/matches/{matchId}/bets/{betId}", (int matchId, int betId, string
     {
         return Results.NotFound("Bet not found.");
     }
-    if (existingBet.User.Id != user.Id)
+    if (existingBet.User.Id != context.Users.Where(u => u.Token == token).First().Id)
     {
         return Results.BadRequest("You can only delete your own bets.");
     }
@@ -506,6 +500,49 @@ app.MapDelete("/matches/{id}", (int id, string token) =>
     context.SaveChanges();
     return Results.NoContent();
 });
+app.MapGet("/matchesTableInformation", () =>
+{
+    // Fetching tournaments
+    var tourneys = context.Tourneys.ToArray();
+    Console.WriteLine("Tournaments:");
+    foreach (var tourney in tourneys)
+    {
+        Console.WriteLine($"ID: {tourney.Id}, Name: {tourney.Name}");
+    }
+
+    // Fetching teams
+    var teams = context.Teams.ToArray();
+    Console.WriteLine("\nTeams:");
+    foreach (var team in teams)
+    {
+        Console.WriteLine($"ID: {team.Id}, Name: {team.Name}");
+    }
+
+    // Fetching matches
+    var matches = context.Matches.ToArray();
+    Console.WriteLine("\nMatches:");
+    foreach (var match in matches)
+    {
+        // Accessing Team1 and Team2 directly from the Match object
+        var team1Name = match.Team1?.Name ?? "Unknown";
+        var team2Name = match.Team2?.Name ?? "Unknown";
+        var tourneyName = tourneys.FirstOrDefault(t => t.Id == match.TourneyId)?.Name ?? "Unknown"; // Corrected line here
+
+
+        Console.WriteLine($"ID: {match.Id}, Tournament: {tourneyName}, " +
+                          $"Team1: {team1Name} (Score: {match.Team1Score}), " +
+                          $"Team2: {team2Name} (Score: {match.Team2Score}), " +
+                          $"Finished: {match.Finished}, Start Time: {match.StartTime}");
+    }
+
+    return Results.Ok(new
+    {
+        tourneys,
+        teams,
+        matches
+    });
+});
+
 
 
 
@@ -525,3 +562,5 @@ static bool IsAdmin(VoetbalContext context, string token)
     }
     return false;
 }
+
+
